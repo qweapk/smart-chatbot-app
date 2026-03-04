@@ -68,7 +68,7 @@ app.post('/api/chat', upload.array('files'), async (req, res) => {
 });
 
 // 处理单页应用路由
-app.get('/:path*', (req, res) => {
+app.get('/{*path}', (req, res) => {
   res.sendFile(path.join(__dirname, '../frontend/dist', 'index.html'));
 });
 

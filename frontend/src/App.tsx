@@ -119,7 +119,21 @@ function App() {
           </div>
           <div className="input-group">
             <label>模型名称</label>
-            <input type="text" value={config.model} onChange={e => setConfig({...config, model: e.target.value})} placeholder="gpt-4o" />
+            <select 
+              value={config.model} 
+              onChange={e => setConfig({...config, model: e.target.value})}
+              className="model-select"
+            >
+              <option value="gpt-4o">gpt-4o (Default)</option>
+              <option value="gemini-3-flash-preview-thinking">gemini-3-flash-preview-thinking</option>
+              <option value="gemini-3-pro-image-preview">gemini-3-pro-image-preview</option>
+              <option value="gemini-3-pro-preview">gemini-3-pro-preview</option>
+              <option value="gemini-3-pro-preview-nothinking">gemini-3-pro-preview-nothinking</option>
+              <option value="gemini-3-pro-preview-thinking">gemini-3-pro-preview-thinking</option>
+              <option value="gemini-3.1-flash-image-preview">gemini-3.1-flash-image-preview</option>
+              <option value="gemini-3.1-pro-preview">gemini-3.1-pro-preview</option>
+              <option value="gemini-3.1-pro-preview-thinking">gemini-3.1-pro-preview-thinking</option>
+            </select>
           </div>
         </div>
 

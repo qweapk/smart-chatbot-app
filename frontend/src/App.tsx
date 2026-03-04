@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Settings, User, Sparkles, Paperclip, X, FileText, Trash2, Plus, MessageSquare, Menu } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 import './App.css';
 
 interface Message {
@@ -65,7 +66,6 @@ function App() {
     let currentId = activeId;
     let currentChats = [...chats];
 
-    // 如果当前没有活跃会话，先创建一个
     if (!currentId) {
       const newId = Date.now().toString();
       const newChat: ChatSession = { id: newId, title: input.slice(0, 15) || '新对话', messages: [], timestamp: Date.now() };
@@ -77,7 +77,6 @@ function App() {
 
     const userMsg: Message = { role: 'user', content: input, files: selectedFiles.map(f => f.name) };
     
-    // 更新本地状态：添加用户消息
     const updatedChats = currentChats.map(c => {
       if (c.id === currentId) {
         return { ...c, messages: [...c.messages, userMsg], title: c.messages.length === 0 ? input.slice(0, 20) : c.title };
@@ -117,7 +116,6 @@ function App() {
 
   return (
     <div className="app-container">
-      {/* 侧边栏 */}
       <aside className={`sidebar ${showSidebar ? 'open' : 'closed'}`}>
         <div className="sidebar-header">
           <button className="new-chat-btn" onClick={createNewChat}>
@@ -135,7 +133,6 @@ function App() {
         </div>
       </aside>
 
-      {/* 主界面 */}
       <main className="main-content">
         <header className="header">
           <div className="left-group">
@@ -180,7 +177,7 @@ function App() {
                 <div key={i} className={`msg-row ${m.role}`}>
                   <div className="avatar">{m.role === 'user' ? <User size={18} /> : <Sparkles size={18} />}</div>
                   <div className="bubble">
-                    {m.content}
+                    <ReactMarkdown>{m.content}</ReactMarkdown>
                     {m.files && m.files.length > 0 && (
                       <div className="file-tags">
                         {m.files.map((f, fi) => <div key={fi} className="file-tag"><FileText size={10} /> {f}</div>)}

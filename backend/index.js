@@ -80,6 +80,6 @@ app.post('/api/chat', upload.array('files'), async (req, res) => {
   }
 });
 
-app.get('/:path*', (req, res) => res.sendFile(path.join(__dirname, '../frontend/dist', 'index.html')));
+app.get('/{*path}', (req, res) => res.sendFile(path.join(__dirname, '../frontend/dist', 'index.html')));
 
-app.listen(port, () => console.log(`Server running on port ${port}`));
+app.listen(port, '0.0.0.0', () => console.log(`Server running on port ${port}`));

@@ -51,7 +51,7 @@ function App() {
       formData.append('config', JSON.stringify(config));
       currentFiles.forEach(file => formData.append('files', file));
 
-      const response = await fetch('http://localhost:3001/api/chat', {
+      const response = await fetch('/api/chat', {
         method: 'POST',
         body: formData,
       });

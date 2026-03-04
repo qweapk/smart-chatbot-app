@@ -73,7 +73,18 @@ app.post('/api/chat', upload.array('files'), async (req, res) => {
       timeout: 60000
     });
 
-    res.json(response.data);
+    // Extract thinking content if available
+    const result = response.data;
+    if (result.choices?.[0]?.message) {
+      const msg = result.choices[0].message;
+      // Check for thinking/reasoning in various possible fields
+      const thinking = msg.thinking || msg.reasoning_content || msg.reasoning || null;
+      if (thinking) {
+        result.choices[0].thinking = thinking;
+      }
+    }
+
+    res.json(result);
   } catch (error) {
     console.error('AI Error:', error.response?.data || error.message);
     res.status(500).json({ error: 'AI 响应失败', details: error.message });

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Settings, User, Sparkles, Paperclip, X, FileText, Trash2, Plus, MessageSquare, Menu, Image as ImageIcon } from 'lucide-react';
+import { Send, Settings, User, Sparkles, Paperclip, X, FileText, Trash2, Plus, MessageSquare, Menu, Image as ImageIcon, ChevronDown, ChevronUp } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import './App.css';
 
@@ -7,6 +7,7 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   files?: { name: string, url: string, type: string }[];
+  thinking?: string;
 }
 
 interface ChatSession {
@@ -28,6 +29,7 @@ function App() {
   const [showSidebar, setShowSidebar] = useState(true);
   const [selectedFiles, setSelectedFiles] = useState<{ file: File, preview: string }[]>([]);
   const [config, setConfig] = useState({ model: 'gemini-3-flash-preview-thinking' });
+  const [expandedThinking, setExpandedThinking] = useState<Set<number>>(new Set());
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -93,9 +95,14 @@ function App() {
 
       const res = await fetch('/api/chat', { method: 'POST', body: fd });
       const data = await res.json();
-      
+
       if (data.choices?.[0]) {
-        setChats(prev => prev.map(c => c.id === currentId ? { ...c, messages: [...c.messages, { role: 'assistant', content: data.choices[0].message.content }] } : c));
+        const assistantMsg: Message = {
+          role: 'assistant',
+          content: data.choices[0].message.content,
+          thinking: data.choices[0].thinking
+        };
+        setChats(prev => prev.map(c => c.id === currentId ? { ...c, messages: [...c.messages, assistantMsg] } : c));
       }
     } catch (err: any) {
       setChats(prev => prev.map(c => c.id === currentId ? { ...c, messages: [...c.messages, { role: 'assistant', content: `❌ 错误: ${err.message}` }] } : c));
@@ -157,11 +164,28 @@ function App() {
                 <div key={i} className={`msg-row ${m.role}`}>
                   <div className="avatar">{m.role === 'user' ? <User size={18} /> : <Sparkles size={18} />}</div>
                   <div className="bubble">
+                    {m.thinking && (
+                      <div className="thinking-section">
+                        <div className="thinking-header" onClick={() => {
+                          const newSet = new Set(expandedThinking);
+                          if (newSet.has(i)) newSet.delete(i); else newSet.add(i);
+                          setExpandedThinking(newSet);
+                        }}>
+                          {expandedThinking.has(i) ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                          <span>思考过程</span>
+                        </div>
+                        {expandedThinking.has(i) && (
+                          <div className="thinking-content">
+                            <ReactMarkdown>{m.thinking}</ReactMarkdown>
+                          </div>
+                        )}
+                      </div>
+                    )}
                     <ReactMarkdown>{m.content}</ReactMarkdown>
                     {m.files && m.files.length > 0 && (
                       <div className="msg-attachments">
                         {m.files.map((f, fi) => (
-                          f.type.startsWith('image/') ? 
+                          f.type.startsWith('image/') ?
                           <img key={fi} src={f.url} alt="upload" className="msg-image" onClick={() => window.open(f.url)} /> :
                           <div key={fi} className="file-tag"><FileText size={10} /> {f.name}</div>
                         ))}

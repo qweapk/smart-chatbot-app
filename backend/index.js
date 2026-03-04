@@ -76,7 +76,7 @@ app.post('/api/chat', upload.array('files'), async (req, res) => {
 });
 
 // 所有非 API 请求都返回前端的 index.html
-app.get('*', (req, res) => {
+app.get('(.*)', (req, res) => {
   res.sendFile(path.join(__dirname, '../frontend/dist', 'index.html'));
 });
 

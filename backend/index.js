@@ -21,59 +21,65 @@ app.post('/api/chat', upload.array('files'), async (req, res) => {
     const parsedMessages = JSON.parse(messages);
     const parsedConfig = config ? JSON.parse(config) : {};
 
-    // --- 核心配置读取逻辑 ---
-    // 优先从环境变量读取（确保安全），如果环境没有则看前端传参
     const apiKey = process.env.API_KEY || parsedConfig.apiKey;
     const rawBaseUrl = process.env.BASE_URL || parsedConfig.baseUrl || 'https://api.openai.com/v1';
-    const baseUrl = rawBaseUrl.replace(/\/$/, ""); // 移除末尾斜杠
+    const baseUrl = rawBaseUrl.replace(/\/$/, "");
     const model = parsedConfig.model || process.env.DEFAULT_MODEL || 'gemini-3-flash-preview-thinking';
 
-    console.log(`[Chat Request] Model: ${model}, BaseURL: ${baseUrl}, KeyStatus: ${apiKey ? 'Present' : 'Missing'}`);
+    if (!apiKey) return res.status(400).json({ error: '未配置 API_KEY' });
 
-    if (!apiKey) {
-      return res.status(400).json({ error: '服务端未配置 API_KEY，请在 Railway 环境变量中设置。' });
-    }
-
-    // 处理文件
+    // 处理图片和文件
     const files = req.files;
-    let lastMessageContent = parsedMessages[parsedMessages.length - 1].content;
-    if (files && files.length > 0) {
-      lastMessageContent += `\n\n(用户上传了文件: ${files.map(f => f.originalname).join(', ')})`;
+    let userContent = [];
+    
+    // 添加文字内容
+    const lastText = parsedMessages[parsedMessages.length - 1].content;
+    if (lastText) {
+      userContent.push({ type: "text", text: lastText });
     }
 
-    const apiMessages = [
+    // 处理上传的文件
+    if (files && files.length > 0) {
+      for (const file of files) {
+        if (file.mimetype.startsWith('image/')) {
+          const base64Image = fs.readFileSync(file.path, { encoding: 'base64' });
+          userContent.push({
+            type: "image_url",
+            image_url: { url: `data:${file.mimetype};base64,${base64Image}` }
+          });
+        } else {
+          userContent.push({ type: "text", text: `\n[文件已上传: ${file.originalname}]` });
+        }
+        // 清理临时文件
+        fs.unlinkSync(file.path);
+      }
+    }
+
+    // 构造最终的消息数组
+    const finalMessages = [
       ...parsedMessages.slice(0, -1),
-      { role: 'user', content: lastMessageContent }
+      { role: 'user', content: userContent.length > 1 ? userContent : lastText }
     ];
 
-    // 请求 AI 接口
     const response = await axios.post(`${baseUrl}/chat/completions`, {
       model: model,
-      messages: apiMessages,
+      messages: finalMessages,
       stream: false
     }, {
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json'
       },
-      timeout: 30000 // 30秒超时
+      timeout: 60000
     });
 
     res.json(response.data);
   } catch (error) {
-    console.error('AI API Error:', error.response?.data || error.message);
-    const errorMessage = error.response?.data?.error?.message || error.message;
-    res.status(500).json({ error: 'AI 接口响应失败', details: errorMessage });
+    console.error('AI Error:', error.response?.data || error.message);
+    res.status(500).json({ error: 'AI 响应失败', details: error.message });
   }
 });
 
-// 处理单页应用路由
-app.get('/{*path}', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/dist', 'index.html'));
-});
+app.get('/:path*', (req, res) => res.sendFile(path.join(__dirname, '../frontend/dist', 'index.html')));
 
-app.listen(port, '0.0.0.0', () => {
-  console.log(`Server is running on port ${port}`);
-  console.log(`Config Check - API_KEY: ${process.env.API_KEY ? 'OK' : 'NOT SET'}`);
-  console.log(`Config Check - BASE_URL: ${process.env.BASE_URL || 'DEFAULT'}`);
-});
+app.listen(port, () => console.log(`Server running on port ${port}`));

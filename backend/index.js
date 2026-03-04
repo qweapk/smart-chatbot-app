@@ -72,7 +72,7 @@ app.get('/{*path}', (req, res) => {
   res.sendFile(path.join(__dirname, '../frontend/dist', 'index.html'));
 });
 
-app.listen(port, '0.0.0.0', () => {
+app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
   console.log(`Config Check - API_KEY: ${process.env.API_KEY ? 'OK' : 'NOT SET'}`);
   console.log(`Config Check - BASE_URL: ${process.env.BASE_URL || 'DEFAULT'}`);

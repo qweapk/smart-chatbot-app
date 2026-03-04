@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Upload, File, X, Settings, User, Sparkles, Paperclip } from 'lucide-react';
+import { Send, Settings, User, Sparkles, Paperclip, X, FileText } from 'lucide-react';
 import './App.css';
 
 interface Message {
@@ -12,7 +12,6 @@ function App() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [showSettings, setShowSettings] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [config, setConfig] = useState({
     apiKey: '',
@@ -20,89 +19,71 @@ function App() {
     model: 'gpt-4o'
   });
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
   }, [messages]);
 
-  const handleSendMessage = async () => {
+  const onSend = async () => {
     if (!input.trim() && selectedFiles.length === 0) return;
 
-    const newMessage: Message = {
-      role: 'user',
-      content: input,
-      files: selectedFiles.map(f => f.name)
-    };
-
-    setMessages([...messages, newMessage]);
+    const userMsg: Message = { role: 'user', content: input, files: selectedFiles.map(f => f.name) };
+    setMessages(prev => [...prev, userMsg]);
+    
+    const curInput = input;
+    const curFiles = [...selectedFiles];
     setInput('');
-    const currentFiles = [...selectedFiles];
     setSelectedFiles([]);
 
     try {
-      const formData = new FormData();
-      formData.append('messages', JSON.stringify([...messages, { role: 'user', content: input }]));
-      formData.append('config', JSON.stringify(config));
-      currentFiles.forEach(file => formData.append('files', file));
+      const fd = new FormData();
+      fd.append('messages', JSON.stringify([...messages, { role: 'user', content: curInput }]));
+      fd.append('config', JSON.stringify(config));
+      curFiles.forEach(f => fd.append('files', f));
 
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        body: formData,
-      });
-
-      const data = await response.json();
-      if (data.choices && data.choices[0]) {
-        setMessages(prev => [...prev, {
-          role: 'assistant',
-          content: data.choices[0].message.content
-        }]);
+      const res = await fetch('/api/chat', { method: 'POST', body: fd });
+      const data = await res.json();
+      
+      if (data.choices?.[0]) {
+        setMessages(prev => [...prev, { role: 'assistant', content: data.choices[0].message.content }]);
       } else {
-        throw new Error(data.error || '接入点响应异常');
+        throw new Error(data.error || 'API 响应异常');
       }
-    } catch (error: any) {
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: `❌ 系统响应异常: ${error.message}`
-      }]);
+    } catch (err: any) {
+      setMessages(prev => [...prev, { role: 'assistant', content: `❌ 错误: ${err.message}` }]);
     }
   };
 
-  const onFileChange = (files: FileList | null) => {
-    if (files) setSelectedFiles([...selectedFiles, ...Array.from(files)]);
-  };
-
   return (
-    <div className={`app-container ${isDragging ? 'dragging' : ''}`} 
-         onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-         onDragLeave={() => setIsDragging(false)}
-         onDrop={(e) => { e.preventDefault(); setIsDragging(false); onFileChange(e.dataTransfer.files); }}>
-      
-      {/* 顶部栏 */}
-      <header className="app-header">
+    <div className="app-container">
+      {/* 顶部 */}
+      <header className="header">
         <div className="brand">
-          <div className="brand-icon"><Sparkles size={16} /></div>
+          <div className="brand-icon"><Sparkles size={18} /></div>
           <span>Gemini</span>
         </div>
-        <button className="icon-btn" onClick={() => setShowSettings(!showSettings)}>
+        <button className="action-btn" onClick={() => setShowSettings(!showSettings)}>
           <Settings size={20} />
         </button>
       </header>
 
-      {/* 配置浮层 */}
+      {/* 配置 */}
       {showSettings && (
-        <div className="settings-overlay">
-          <div className="input-group">
+        <div className="settings-pop">
+          <div className="setting-item">
             <label>API Key</label>
-            <input type="password" value={config.apiKey} onChange={e => setConfig({...config, apiKey: e.target.value})} placeholder="默认使用系统配置" />
+            <input type="password" value={config.apiKey} onChange={e => setConfig({...config, apiKey: e.target.value})} placeholder="系统默认配置" />
           </div>
-          <div className="input-group">
+          <div className="setting-item">
             <label>中转地址</label>
             <input type="text" value={config.baseUrl} onChange={e => setConfig({...config, baseUrl: e.target.value})} />
           </div>
-          <div className="input-group">
-            <label>模型选择</label>
+          <div className="setting-item">
+            <label>选择模型</label>
             <select value={config.model} onChange={e => setConfig({...config, model: e.target.value})}>
               <option value="gpt-4o">gpt-4o</option>
               <option value="gemini-3-flash-preview-thinking">gemini-3-flash-preview-thinking</option>
@@ -112,59 +93,66 @@ function App() {
         </div>
       )}
 
-      {/* 聊天区 */}
-      <div className="messages-container">
+      {/* 内容区 */}
+      <div className="chat-scroll-area" ref={scrollRef}>
         {messages.length === 0 ? (
-          <div className="welcome">
-            <h1>有什么可以帮您的？</h1>
-            <p>基于液态玻璃设计的智能助手，支持文件拖拽与多模型切换。</p>
+          <div className="welcome-hero">
+            <h1>Gemini</h1>
+            <p>基于液态玻璃设计的极简助手</p>
           </div>
         ) : (
-          messages.map((m, i) => (
-            <div key={i} className={`message-row ${m.role}`}>
-              <div className="avatar">
-                {m.role === 'user' ? <User size={18} /> : <Sparkles size={18} />}
+          <div className="messages-list">
+            {messages.map((m, i) => (
+              <div key={i} className={`msg-row ${m.role}`}>
+                <div className="avatar">
+                  {m.role === 'user' ? <User size={20} /> : <Sparkles size={20} />}
+                </div>
+                <div className="bubble">
+                  {m.content}
+                  {m.files && m.files.length > 0 && (
+                    <div style={{display: 'flex', gap: '5px', marginTop: '8px'}}>
+                      {m.files.map((f, fi) => (
+                        <div key={fi} style={{fontSize: '11px', background: 'rgba(0,0,0,0.05)', padding: '2px 8px', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '4px'}}>
+                          <FileText size={10} /> {f}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
-              <div className="message-bubble">
-                {m.content}
-                {m.files && m.files.length > 0 && (
-                  <div style={{marginTop: '8px', display: 'flex', gap: '4px'}}>
-                    {m.files.map((f, fi) => <div key={fi} className="file-chip"><File size={10} /> {f}</div>)}
-                  </div>
-                )}
-              </div>
-            </div>
-          ))
+            ))}
+          </div>
         )}
-        <div ref={messagesEndRef} />
       </div>
 
-      {/* 浮动输入区 */}
-      <div className="input-wrapper">
-        <div className="file-previews">
-          {selectedFiles.map((f, i) => (
-            <div key={i} className="file-chip">
-              <File size={12} /> {f.name}
-              <X size={12} style={{cursor: 'pointer'}} onClick={() => setSelectedFiles(selectedFiles.filter((_, idx) => idx !== i))} />
-            </div>
-          ))}
-        </div>
-        
-        <div className="input-box">
-          <button className="icon-btn" onClick={() => fileInputRef.current?.click()}>
+      {/* 底部输入框 */}
+      <div className="bottom-area">
+        <div className="input-pill">
+          <button className="action-btn" onClick={() => fileRef.current?.click()}>
             <Paperclip size={20} />
           </button>
-          <input type="file" multiple hidden ref={fileInputRef} onChange={(e) => onFileChange(e.target.files)} />
+          <input type="file" multiple hidden ref={fileRef} onChange={e => e.target.files && setSelectedFiles([...selectedFiles, ...Array.from(e.target.files)])} />
           
-          <textarea 
-            rows={1}
-            placeholder="发送消息或拖拽文件..."
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); }}}
-          />
-          
-          <button className={`icon-btn send-btn ${input ? 'active' : ''}`} onClick={handleSendMessage}>
+          <div style={{flex: 1, display: 'flex', flexDirection: 'column'}}>
+            {selectedFiles.length > 0 && (
+              <div style={{display: 'flex', gap: '8px', padding: '5px 0'}}>
+                {selectedFiles.map((f, i) => (
+                  <div key={i} style={{fontSize: '12px', background: '#eee', padding: '2px 10px', borderRadius: '15px', display: 'flex', alignItems: 'center', gap: '5px'}}>
+                    {f.name} <X size={12} style={{cursor: 'pointer'}} onClick={() => setSelectedFiles(selectedFiles.filter((_, idx) => idx !== i))} />
+                  </div>
+                ))}
+              </div>
+            )}
+            <textarea 
+              rows={1} 
+              placeholder="输入消息..." 
+              value={input} 
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSend(); }}}
+            />
+          </div>
+
+          <button className={`action-btn ${input ? 'send-active' : ''}`} onClick={onSend}>
             <Send size={20} />
           </button>
         </div>

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Upload, File, X, Settings, Plus, User, Bot, Trash2 } from 'lucide-react';
+import { Send, Upload, File, X, Settings, Plus, User, Bot } from 'lucide-react';
 import './App.css';
 
 interface Message {

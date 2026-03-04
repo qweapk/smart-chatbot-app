@@ -124,7 +124,13 @@ function App() {
             <div key={chat.id} className={`history-item ${activeId === chat.id ? 'active' : ''}`} onClick={() => setActiveId(chat.id)}>
               <MessageSquare size={16} />
               <span className="chat-title">{chat.title}</span>
-              <Trash2 className="delete-icon" size={14} onClick={(e) => { e.stopPropagation(); setChats(chats.filter(c => c.id !== chat.id)); }} />
+              <Trash2 className="delete-icon" size={14} onClick={(e) => {
+                e.stopPropagation();
+                if (window.confirm('确定要删除这个对话吗？')) {
+                  setChats(chats.filter(c => c.id !== chat.id));
+                  if (activeId === chat.id) setActiveId(null);
+                }
+              }} />
             </div>
           ))}
         </div>
